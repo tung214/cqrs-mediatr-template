@@ -1,0 +1,6 @@
+@Laborie.Service.Api_HostAddress = http://localhost:5188
+
+GET {{Laborie.Service.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

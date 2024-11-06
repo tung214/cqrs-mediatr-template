@@ -1,0 +1,7 @@
+**/bin
+**/obj
+**/Logs
+**/appsettings*.json
+**/.vs
+**/.vscode
+**/Logs

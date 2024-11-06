@@ -1,0 +1,96 @@
+# remember to put this ' gitlab-runner ALL=(ALL) NOPASSWD: ALL ' in /etc/sudoers (sudo visudo) for this to work
+variables:
+  SCRIPT_DIR: 'http://scripts.company.com'
+  REGISTRY: 'dkr.ecr.ap-southeast-1.amazonaws.com'
+  EKS_NAMESPACE: 'company'
+
+stages:
+  - build
+  - deploy
+  - release
+
+
+build-dev:
+  stage: build
+
+  tags:
+    - eks-dev-runner
+
+  script:
+    - curl $SCRIPT_DIR/ecr-login.sh | sudo bash
+    - curl $SCRIPT_DIR/docker-push.sh | sudo bash -s -- -n $app -v $CI_COMMIT_TAG -r $REGISTRY
+  
+  only:
+    - /^v.*-dev$/
+    
+  except:
+    - branches
+    
+  
+deploy-dev:
+  stage: deploy
+
+  tags:
+    - eks-dev-runner
+
+  script: 
+    - curl $SCRIPT_DIR/k8s/scripts/dotnet-k8s-deploy-develop.sh | bash -s -- -n $app -p $port -v $CI_COMMIT_TAG -r $REGISTRY -k default
+          
+  only:
+    - /^v.*-dev$/
+
+  except:
+    - branches
+
+
+build-staging:
+  stage: build
+
+  tags:
+    - eks-std-runner
+
+  script:
+    - curl $SCRIPT_DIR/ecr-login.sh | sudo bash
+    - curl $SCRIPT_DIR/docker-push.sh | sudo bash -s -- -n $app -v $CI_COMMIT_TAG -r $REGISTRY
+  
+  only:
+    - /^v.*-release$/
+
+  except:
+    - branches
+
+
+deploy-staging:
+  stage: deploy
+
+  tags:
+    - eks-std-runner
+
+  script: 
+    - curl $SCRIPT_DIR/k8s/scripts/dotnet-k8s-deploy-std.sh | bash -s -- -n $app -p $port -v $CI_COMMIT_TAG -r $REGISTRY -k $EKS_NAMESPACE -g m6anodegroup
+  only:
+    - /^v.*-release$/
+
+  except:
+    - branches
+
+  when: manual
+
+
+
+release-live:
+  stage: release
+
+  tags:
+    - eks-std-runner
+
+  script: 
+    - curl $SCRIPT_DIR/k8s/scripts/dotnet-k8s-deploy-live.sh | bash -s -- -n $app -p $port -v $CI_COMMIT_TAG -r $REGISTRY -k $EKS_NAMESPACE -g m6anodegroup -x 400 -z 1500
+          
+  only:
+    - /^v.*-release$/
+
+  except:
+    - branches
+
+  when: manual
